@@ -36,7 +36,7 @@ enable:
 	@echo "nameserver $(RESOLVER_IP)" | sudo tee /etc/resolv.conf >/dev/null
 
 	@echo "[SUCCESS] System now using custom DNS resolver on 127.0.0.1."
-	@echo "Run: sudo python3 resolver.py"
+	@echo "Run: sudo g++ -std=c++17 -Wall -Wextra -o resolver resolver_nometrics.cpp"
 
 
 # ------------------------------------------------------------
@@ -67,7 +67,7 @@ disable clean:
 # run: start resolver
 # ------------------------------------------------------------
 run:
-	sudo python3 resolver.py
+	sudo ./resolver
 
 # ------------------------------------------------------------
 # show: show current DNS settings
