@@ -128,62 +128,60 @@ class DnsCache {            // this is our cache storage which stores each cache
 
 DnsCache dnsCache;
 
-// ---------------------------
-// DNS wire helpers
-// ---------------------------
-vector<uint8_t> encodeName(const string& name) {
-    if (name.empty()) return {0};
+
+vector<uint8_t> encodeName(const string& name) {            // Encodes it inot the DNS QNAME format length labels ending with 0
+    if (name.empty()) return {0};                        
     vector<uint8_t> out;
-    size_t start = 0;
-    while (start < name.size()) {
-        size_t dot = name.find('.', start);
-        if (dot == string::npos) dot = name.size();
+    size_t start= 0;
+    while (start <name.size()) {
+        size_t dot=name.find('.', start);
+        if (dot==string::npos) dot = name.size();
         size_t len = dot - start;
-        out.push_back(static_cast<uint8_t>(len));
-        for (size_t i = 0; i < len; ++i) out.push_back(static_cast<uint8_t>(name[start + i]));
-        start = dot + 1;
+        out.push_back(static_cast<uint8_t>(len));            //add length the word
+        for (size_t i=0; i <len; ++i) out.push_back(static_cast<uint8_t>(name[start +i]));
+        start = dot+1;
     }
-    out.push_back(0);
+    out.push_back(0);                //ending with 0
     return out;
 }
 
 pair<string, size_t> decodeName(const vector<uint8_t>& data, size_t offset) {
     string name;
-    size_t orig_offset = offset;
-    bool jumped = false;
-    while (offset < data.size()) {
-        uint8_t len = data[offset];
-        if ((len & 0xC0) == 0xC0) {
-            if (offset + 1 >= data.size()) break;
-            uint16_t pointer = static_cast<uint16_t>((len & 0x3F) << 8 | data[offset + 1]);
+    size_t orig_offset=offset;        //decode the DNS QNAME format just switching back from the length and word format 
+    bool jumped=false;
+    while (offset<data.size()) {
+        uint8_t len=data[offset];        
+        if ((len &0xC0)==0xC0) {
+            if (offset+1 >=data.size()) break;
+            uint16_t pointer =static_cast<uint16_t>((len & 0x3F) << 8 | data[offset + 1]);
             if (!jumped) {
-                orig_offset = offset + 2;
+                orig_offset =offset + 2;
             }
-            offset = pointer;
-            jumped = true;
+            offset=pointer;
+            jumped= true;
             continue;
         }
-        if (len == 0) {
-            offset += 1;
+        if (len==0) {
+            offset +=1;
             break;
         }
         if (!name.empty()) name.push_back('.');
-        if (offset + 1 + len > data.size()) break;
+        if (offset+1+len >data.size()) break;
         name.append(reinterpret_cast<const char*>(&data[offset + 1]), len);
         offset += len + 1;
     }
     return {name, jumped ? orig_offset : offset};
 }
 
-pair<uint16_t, vector<uint8_t>> buildQuery(const string& domain, uint16_t qtype = 1) {
+pair<uint16_t, vector<uint8_t>> buildQuery(const string& domain, uint16_t qtype = 1) {                // building the packet header + question
     static random_device rd;
     static mt19937 gen(rd());
     uniform_int_distribution<uint16_t> dist(0, 0xFFFF);
-    uint16_t tid = dist(gen);
+    uint16_t tid=dist(gen);
 
     vector<uint8_t> packet(12, 0);
     packet[0] = static_cast<uint8_t>(tid >> 8);
-    packet[1] = static_cast<uint8_t>(tid & 0xFF);
+    packet[1] = static_cast<uint8_t>(tid & 0xFF);                //random transaction id 
     packet[2] = 0x01;  // RD=1
     packet[5] = 0x01;  // QDCOUNT=1
 
@@ -204,35 +202,33 @@ struct ResourceRecord {
     vector<uint8_t> rdata;
 };
 
-size_t parseQuestion(const vector<uint8_t>& data, size_t offset) {
+size_t parseQuestion(const vector<uint8_t>& data, size_t offset) {            //basically skips over the encoded question
     auto [_, new_offset] = decodeName(data, offset);
     if (new_offset + 4 > data.size()) return data.size();
     return new_offset + 4;
 }
 
-vector<ResourceRecord> readRRs(const vector<uint8_t>& data, size_t& offset, uint16_t count) {
+vector<ResourceRecord> readRRs(const vector<uint8_t>& data, size_t& offset, uint16_t count) {                // readds the amount of count resource records from the buffer starting at offset 
     vector<ResourceRecord> out;
     for (uint16_t i = 0; i < count && offset < data.size(); ++i) {
         auto [name, next_offset] = decodeName(data, offset);
         offset = next_offset;
-        if (offset + 10 > data.size()) break;
-        uint16_t rtype = static_cast<uint16_t>((data[offset] << 8) | data[offset + 1]);
-        uint16_t rclass = static_cast<uint16_t>((data[offset + 2] << 8) | data[offset + 3]);
-        uint32_t ttl = (data[offset + 4] << 24) | (data[offset + 5] << 16) | (data[offset + 6] << 8) | data[offset + 7];
-        uint16_t rdlen = static_cast<uint16_t>((data[offset + 8] << 8) | data[offset + 9]);
+        if (offset+10> data.size()) break;
+        uint16_t rtype=static_cast<uint16_t>((data[offset]<<8) | data[offset + 1]);                // get the type 
+        uint16_t rclass=static_cast<uint16_t>((data[offset + 2]<<8) | data[offset + 3]);            //the class 
+        uint32_t ttl=(data[offset+4] << 24)|(data[offset + 5]<<16)|(data[offset + 6] << 8) | data[offset + 7]    ;    // time to life
+        uint16_t rdlen =static_cast<uint16_t>((data[offset + 8] << 8) | data[offset + 9]);
         offset += 10;
-        if (offset + rdlen > data.size()) break;
+        if (offset+rdlen >data.size()) break;
         vector<uint8_t> rdata(data.begin() + offset, data.begin() + offset + rdlen);
-        offset += rdlen;
+        offset +=rdlen;
         out.push_back({rtype, rclass, ttl, move(rdata)});
     }
     return out;
 }
 
-// ---------------------------
-// Upstream communication
-// ---------------------------
-vector<uint8_t> sendUpstreamQuery(const string& server_ip, const vector<uint8_t>& packet) {
+
+vector<uint8_t> sendUpstreamQuery(const string& server_ip, const vector<uint8_t>& packet) {          // make a UDP socket   
     int sock = ::socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) throw runtime_error("socket failed");
 
@@ -243,7 +239,7 @@ vector<uint8_t> sendUpstreamQuery(const string& server_ip, const vector<uint8_t>
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(53);
+    addr.sin_port = htons(53);                //sends packets to server ip 53
     addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
 
     if (sendto(sock, packet.data(), packet.size(), 0, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
@@ -256,7 +252,7 @@ vector<uint8_t> sendUpstreamQuery(const string& server_ip, const vector<uint8_t>
     ssize_t received = recvfrom(sock, buffer.data(), buffer.size(), 0, reinterpret_cast<sockaddr*>(&addr), &addrlen);
     close(sock);
     if (received < 0) throw runtime_error("recvfrom failed");
-    buffer.resize(static_cast<size_t>(received));
+    buffer.resize(static_cast<size_t>(received));                // return the received buffer 
     return buffer;
 }
 
@@ -264,14 +260,14 @@ string findARecord(const string& domain) {
     string domain_lower = domain;
     for (auto& c : domain_lower) c = static_cast<char>(tolower(c));
 
-    // Cache check
+    // Check if in cache 
     string cached = dnsCache.get(domain_lower);
     if (!cached.empty()) {
         if (cached == "0.0.0.0") {
             cout << "[CACHE] " << domain_lower << " failed previously.\n";
             return "0.0.0.0";
         }
-        cout << "[CACHE] " << domain_lower << " -> " << cached << "\n";
+        cout << "[CACHE] " << domain_lower << " -> " << cached << "\n";            //if cached then return or else look at random from the root servers in our list
         return cached;
     }
 
@@ -281,7 +277,7 @@ string findARecord(const string& domain) {
     uniform_int_distribution<size_t> dist(0, ROOT_SERVERS.size() - 1);
 
     for (int attempt = 0; attempt < 5; ++attempt) {
-        string server = ROOT_SERVERS[dist(gen)];
+        string server = ROOT_SERVERS[dist(gen)];                    // for a maximum of 5 attempts build the query and send to the server chosen
         try {
             auto [tid, packet] = buildQuery(domain_lower, 1);
             cout << "[QUERY] " << server << " <- " << domain_lower << "\n";
@@ -294,7 +290,7 @@ string findARecord(const string& domain) {
             for (uint16_t i = 0; i < qdcount; ++i) {
                 offset = parseQuestion(resp, offset);
             }
-            auto answers = readRRs(resp, offset, ancount);
+            auto answers = readRRs(resp, offset, ancount);                // once we get the response we cache it 
             for (const auto& rr : answers) {
                 if (rr.type == 1 && rr.rdata.size() == 4) {
                     char ip_buf[INET_ADDRSTRLEN]{};
@@ -311,17 +307,15 @@ string findARecord(const string& domain) {
         }
     }
 
-    cerr << "[!] Could not resolve " << domain_lower << ", returning 0.0.0.0\n";
+    cerr << "[!] Could not resolve " << domain_lower << ", returning 0.0.0.0\n";            // if all attempts fail then just return 0.0.0.0
     dnsCache.setFailure(domain_lower);
     return "0.0.0.0";
 }
 
-// ---------------------------
-// Response builder
-// ---------------------------
+    
 vector<uint8_t> buildResponse(const vector<uint8_t>& request, const string& ip, bool nxdomain) {
     if (request.size() < 12) return {};
-    vector<uint8_t> response;
+    vector<uint8_t> response;                    //reconstructs a dns response from the incoming rewuest and appends one answer record pointing either to ip or 0.0.0.0
     response.reserve(request.size() + 16);
 
     uint16_t tid = static_cast<uint16_t>((request[0] << 8) | request[1]);
@@ -374,14 +368,12 @@ vector<uint8_t> buildResponse(const vector<uint8_t>& request, const string& ip, 
     return response;
 }
 
-// ---------------------------
-// Main server
-// ---------------------------
+
 bool running = true;
 
 void handleSignal(int) { running = false; }
 
-void serve(const string& bind_addr, uint16_t port, 
+void serve(const string& bind_addr, uint16_t port,                     // run the normal server code like previous hws
            const set<string>& blocklist, 
            const vector<string>& keywordBlocklist) {
     int sock = ::socket(AF_INET, SOCK_DGRAM, 0);
@@ -395,7 +387,7 @@ void serve(const string& bind_addr, uint16_t port,
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(bind_addr.c_str());
+    addr.sin_addr.s_addr = inet_addr(bind_addr.c_str());                    //bind to root 53
 
     if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
         close(sock);
@@ -413,7 +405,7 @@ void serve(const string& bind_addr, uint16_t port,
 
         vector<uint8_t> request(buffer.begin(), buffer.begin() + n);
         try {
-            auto [qname, offset] = decodeName(request, 12);
+            auto [qname, offset] = decodeName(request, 12);                // we decode the query and then do the adblocking
             if (qname.empty()) {
                 cerr << "[WARN] Empty query name\n";
                 continue;
@@ -450,7 +442,7 @@ void serve(const string& bind_addr, uint16_t port,
 
             string ip = "0.0.0.0";
             bool nxdomain = false;
-            if (blocked) {
+            if (blocked) {                    //if neither blokc then find the record and do the normal search 
                 nxdomain = true;
             } else {
                 ip = findARecord(qname);
@@ -467,7 +459,7 @@ void serve(const string& bind_addr, uint16_t port,
 }
 
  // namespace
-
+// just initialize everything
 int main(int argc, char* argv[]) {
     string bind_addr = "0.0.0.0";
     uint16_t port = 53;
