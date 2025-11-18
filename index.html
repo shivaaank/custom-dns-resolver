@@ -188,23 +188,21 @@
     <div class="container">
 
         <div class="section-card">
-            <h2>Project Abstract</h2>
+            <h2>Project Summary</h2>
             <p>
-                In an era of increasing digital surveillance and intrusive advertising, control over network traffic is paramount. This project implements a custom <strong>Recursive DNS Resolver</strong> capable of intercepting and filtering Domain Name System queries at the local level. 
-            </p>
-            <p>
-                By integrating a <strong>110,000+ domain blocklist</strong> directly into the resolution process, the system proactively prevents connections to known ad servers and trackers before they leave the local network. Built with Python and integrated via system-level Makefiles, this tool offers a lightweight, transparent, and educational alternative to commercial DNS filters.
+                This is a simple implementation of a custom DNS server that resolves domain names recursively.
+                It also implements basic ad-block functionality by using a common block-list and keyword list to filter and block requests to ad servers.
+                Threading and Caching make it efficient enough to be usable in normal traffic environments.
             </p>
             <div class="btn-group">
-                <a href="https://github.com/NalishJain/IIITD-PYQs" target="_blank" class="btn btn-github">
+                <a href="https://github.com/shivaaank/custom-dns-resolver" target="_blank" class="btn btn-github">
                     View Source on GitHub
                 </a>
                 
             </div>
         </div>
         <div class="section-card" id="demo">
-            <h2>Project Demonstration</h2>
-            <p>A complete walkthrough of the system's capabilities, performance metrics, and usage.</p>
+            <h2>Video Demonstration</h2>
             <div class="video-wrapper">
                 <iframe src="https://youtu.be/VLZqWGQHZFM?si=ZXh7eqmfpTo3FibP" title="Project Demo Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
             </div>
@@ -215,14 +213,14 @@
             <h2>System Architecture</h2>
             <p>The project consists of three core components working in unison:</p>
             
-            <h3>1. The Core Resolver (<code>resolver.cpp</code>)</h3>
+            <h3>1. The Core Resolver (<code>resolver_nometrics.cpp</code>)</h3>
             <p>A multi-threaded UDP server listening on port 53. It parses incoming packets, checks against an in-memory <code>set</code> of blocked domains, and resolves allowed queries upstream.</p>
 
             <h3>2. The Controller (<code>Makefile</code>)</h3>
             <p>Automates the complex task of unbinding the OS's default DNS stub listener. It safely backs up <code>/etc/resolv.conf</code> before injecting the localhost address.</p>
 
             <h3>3. The Blocklist (<code>hosts.blocklist</code>)</h3>
-            <p>A curated list of malicious and commercial domains, parsed at runtime for efficient O(1) lookups.</p>
+            <p>A curated list of malicious and commercial domains <url>(https://raw.githubusercontent.com/stevenblack/hosts/master/hosts)</url>, parsed at runtime for efficient lookups.</p>
         </div>
 
         
