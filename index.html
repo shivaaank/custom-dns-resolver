@@ -130,11 +130,11 @@ Threading allows it to handle multiple queries efficiently in real-time.
 
 <section>
 <h2>Video Demonstration</h2>
-<iframe src="https://www.youtube.com/embed/VLZqWGQHZFM?si=ZXh7eqmfpTo3FibP" allowfullscreen></iframe>
+<iframe src="https://youtu.be/t4XWVjPXYc4" allowfullscreen></iframe>
 </section>
 
 <section>
-</h2>System Architecture</h2>
+<h2>System Architecture</h2>
 <h3>1. Core Resolver (<code>resolver_nometrics.cpp</code>)</h3>
 <p>Multi-threaded UDP DNS resolver binding to <code>127.0.0.1:53</code>. Implements manual DNS packet handling (QNAME encode/decode), builds and sends DNS queries to upstream/root servers, parses resource records, and constructs responses by mirroring the client's transaction ID and question and appending a single A-record answer. An in-memory <code>DnsCache</code> stores successful and failed lookups to reduce upstream traffic.</p>
 
